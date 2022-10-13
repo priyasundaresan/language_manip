@@ -137,6 +137,75 @@ class PickPlaceEnv():
         maxNumIterations=100)
     self.servoj(joints)
 
+  def step_pick(self, pick_xyz):
+    # Set fixed primitive z-heights.
+    hover_xyz = pick_xyz.copy() + np.float32([0, 0, 0.2])
+    pick_xyz[2] = 0.03
+
+    # Move to object.
+    ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+    while np.linalg.norm(hover_xyz - ee_xyz) > 0.01:
+      self.movep(hover_xyz)
+      self.step_sim_and_render()
+      ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+    while np.linalg.norm(pick_xyz - ee_xyz) > 0.01:
+      self.movep(pick_xyz)
+      self.step_sim_and_render()
+      ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+
+    # Pick up object.
+    self.gripper.activate()
+    for _ in range(240):
+      self.step_sim_and_render()
+    while np.linalg.norm(hover_xyz - ee_xyz) > 0.01:
+      self.movep(hover_xyz)
+      self.step_sim_and_render()
+      ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+
+    observation = self.get_observation()
+    reward = self.get_reward()
+    done = False
+    info = {}
+    return observation, reward, done, info
+
+  def step_place(self, place_xyz):
+    place_xyz[2] = 0.15
+    ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+    # Move to place location.
+    while np.linalg.norm(place_xyz - ee_xyz) > 0.01:
+      self.movep(place_xyz)
+      self.step_sim_and_render()
+      ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+
+    # Place down object.
+    while (not self.gripper.detect_contact()) and (place_xyz[2] > 0.03):
+      place_xyz[2] -= 0.001
+      self.movep(place_xyz)
+      for _ in range(3):
+        self.step_sim_and_render()
+    self.gripper.release()
+    for _ in range(240):
+      self.step_sim_and_render()
+    place_xyz[2] = 0.2
+
+    ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+    while np.linalg.norm(place_xyz - ee_xyz) > 0.01:
+      self.movep(place_xyz)
+      self.step_sim_and_render()
+      ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+
+    #place_xyz = np.float32([0, -0.5, 0.2])
+    #while np.linalg.norm(place_xyz - ee_xyz) > 0.01:
+    #  self.movep(place_xyz)
+    #  self.step_sim_and_render()
+    #  ee_xyz = np.float32(pybullet.getLinkState(self.robot_id, self.tip_link_id)[0])
+
+    observation = self.get_observation()
+    reward = self.get_reward()
+    done = False
+    info = {}
+    return observation, reward, done, info
+
   def step(self, action=None):
     """Do pick and place motion primitive."""
     pick_xyz, place_xyz = action["pick"].copy(), action["place"].copy()
@@ -231,7 +300,8 @@ class PickPlaceEnv():
                            orientation=(0, np.pi, -np.pi / 2),
                            zrange=(0.01, 1.),
                            set_alpha=True):
-    set_alpha and self.set_alpha_transparency(0)
+    #set_alpha and self.set_alpha_transparency(0)
+    set_alpha and self.set_alpha_transparency(1)
     color, _, _, _, _ = self.render_image_top(image_size, 
                                              intrinsics,
                                              position,
@@ -322,6 +392,40 @@ class PickPlaceEnv():
     intrinsics = np.float32(intrinsics).reshape(3, 3)
     return color, depth, position, orientation, intrinsics
 
+  def get_fmat(self, image_size=(720, 720), intrinsics=(360., 0, 360., 0, 360., 360., 0, 0, 1)):
+    # Camera parameters.
+    position = (0, -0.85, 0.4)
+    orientation = (np.pi / 4 + np.pi / 48, np.pi, np.pi)
+    orientation = pybullet.getQuaternionFromEuler(orientation)
+    zrange = (0.01, 10.)
+
+    # OpenGL camera settings.
+    lookdir = np.float32([0, 0, 1]).reshape(3, 1)
+    updir = np.float32([0, -1, 0]).reshape(3, 1)
+    rotation = pybullet.getMatrixFromQuaternion(orientation)
+    rotm = np.float32(rotation).reshape(3, 3)
+    lookdir = (rotm @ lookdir).reshape(-1)
+    updir = (rotm @ updir).reshape(-1)
+    lookat = position + lookdir
+    focal_len = intrinsics[0]
+    #znear, zfar = (0.01, 10.)
+    znear, zfar = (0.01, 100.)
+    viewm = pybullet.computeViewMatrix(position, lookat, updir)
+    fovh = (image_size[0] / 2) / focal_len
+    fovh = 180 * np.arctan(fovh) * 2 / np.pi
+
+    # Notes: 1) FOV is vertical FOV 2) aspect must be float
+    aspect_ratio = image_size[1] / image_size[0]
+    projm = pybullet.computeProjectionMatrixFOV(fovh, aspect_ratio, znear, zfar)
+
+    my_order = 'C'
+    pmat = np.array(projm).reshape((4,4), order=my_order)
+    vmat = np.array(viewm).reshape((4,4), order=my_order)
+    fmat = pmat @ vmat.T
+
+    return fmat
+
+ 
   def render_image_top(self, 
                        image_size=(240, 240), 
                        intrinsics=(2000., 0, 2000., 0, 2000., 2000., 0, 0, 1),

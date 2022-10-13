@@ -18,6 +18,10 @@ PICK_TARGETS = {
   "red block": None,
   "green block": None,
   "yellow block": None,
+  "blue bowl": None,
+  "red bowl": None,
+  "green bowl": None,
+  "yellow bowl": None,
 }
 
 COLORS = {
@@ -85,10 +89,15 @@ for d in [dset_dir, images_dir, lang_dir, keypoints_dir]:
         os.mkdir(d)
 
 policy = ScriptedPolicy(env, PICK_TARGETS, PLACE_TARGETS)
+print('here', PICK_TARGETS)
 prompts, items = policy.generate_all_block_demos()
 prompts_2, items_2 = policy.generate_pick_place_demo()
+prompts_3, items_3 = policy.generate_all_bowl_demos()
+#print(prompts_3, items_3)
 prompts += prompts_2
 items += items_2
+prompts += prompts_3
+items += items_3
 
 print(len(prompts), len(items))
 for data_idx, (prompt, items_to_annotate) in enumerate(zip(prompts, items)):
@@ -100,7 +109,7 @@ for data_idx, (prompt, items_to_annotate) in enumerate(zip(prompts, items)):
     img = np.flipud(img.transpose(1, 0, 2))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    print(img.shape)
+    #print(img.shape)
 
     pixels = []
     for item in items_to_annotate:

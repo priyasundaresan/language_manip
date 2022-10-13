@@ -37,6 +37,10 @@ class ScriptedPolicy():
     if 'blocks' in prompt:
         prompt_aug.append(prompt.replace('blocks', 'cubes'))
         prompt_aug.append(prompt.replace('blocks', 'boxes'))
+    if 'bowls' in prompt:
+        prompt_aug.append(prompt.replace('bowls', 'cups'))
+    if 'bowl' in prompt:
+        prompt_aug.append(prompt.replace('bowl', 'cup'))
     if 'a ' in prompt:
         prompt_aug.append(prompt.replace('a ', 'any '))
     return prompt_aug
@@ -67,6 +71,30 @@ class ScriptedPolicy():
             annotations.append(annots)
     return prompts, items_to_annotate
 
+  def generate_all_bowl_demos(self):
+    prompts = []
+    items_to_annotate = []
+    annotations = []
+    prompts_all = ['Stack the bowls', \
+                  'Put the bowls on top of each other', \
+                  'Pick up a bowl']
+    for prompt in prompts_all:
+        bowls = [k for k in self.PICK_TARGETS.keys() if 'bowl' in k]
+        prompt_aug = self.prompt_augs(prompt)
+        annots = []
+        for i, target in enumerate(bowls):
+            pick_id = self.env.obj_name_to_id[target]
+            pick_pose = pybullet.getBasePositionAndOrientation(pick_id)
+            pick_position = np.float32(pick_pose[0])
+            annots.append(pick_position)
+        #annotations.append(annots)
+
+        for p in prompt_aug:
+            prompts.append(p)
+            items_to_annotate.append(bowls)
+            annotations.append(annots)
+    return prompts, items_to_annotate
+
   def generate_pick_place_demo(self):
     prompt = 'Pick the %s and put it on the %s'
     prompts = []
@@ -89,6 +117,26 @@ class ScriptedPolicy():
                 items_to_annotate.append(items)
                 annotations.append(annots)
     #pprint.pprint(list(zip(prompts, items_to_annotate)))
-
     return prompts, items_to_annotate
+
+  def step(self, pick_target, place_target):
+    print(f'Input: {text}')
+
+    assert(pick_target in self.PICK_TARGET.keys())
+    assert(place_target in self.PLACE_TARGET.keys())
     
+    pick_id = self.env.obj_name_to_id[pick_target]
+    pick_pose = pybullet.getBasePositionAndOrientation(pick_id)
+    pick_position = np.float32(pick_pose[0])
+
+    if place_target in self.env.obj_name_to_id:
+      place_id = self.env.obj_name_to_id[place_target]
+      place_pose = pybullet.getBasePositionAndOrientation(place_id)
+      place_position = np.float32(place_pose[0])
+    else:
+      place_position = np.float32(self.PLACE_TARGETS[place_target])
+
+    # Add some noise to pick and place positions.
+    #place_position[:2] += np.random.normal(scale=0.01)
+    act = {'pick': pick_position, 'place': place_position}
+    return act
