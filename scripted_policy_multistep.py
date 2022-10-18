@@ -181,7 +181,7 @@ class ScriptedPolicy():
     return prompt, items, actions
 
   def generate_pick_place_demo(self):
-    all_pick_items = list(self.PICK_TARGETS.keys())
+    all_pick_items = [k for k in self.PICK_TARGETS.keys() if 'block' in k]
     all_place_items = list(self.PLACE_TARGETS.keys())
     pick_item = random.choice(all_pick_items)
     all_place_items.remove(pick_item)
@@ -210,8 +210,7 @@ class ScriptedPolicy():
              self.generate_block_same_corner_demo(), \
              self.generate_stack_demo('block'), \
              ]
-    #random_demo = random.choice(DEMOS)
-    random_demo = DEMOS[-1]
+    random_demo = random.choice(DEMOS)
     return random_demo
     
   def step(self, action, target):

@@ -310,6 +310,23 @@ class PickPlaceEnv():
     set_alpha and self.set_alpha_transparency(1)
     return color
 
+  def get_camera_image(self, 
+                           image_size=(240, 240), 
+                           intrinsics=(2000., 0, 2000., 0, 2000., 2000., 0, 0, 1),
+                           position=(0, -2.9, 5),
+                           orientation=(0.45, np.pi, np.pi),
+                           zrange=(0.01, 1.),
+                           set_alpha=True):
+    #set_alpha and self.set_alpha_transparency(0)
+    set_alpha and self.set_alpha_transparency(1)
+    color, _, _, _, _ = self.render_image_top(image_size, 
+                                             intrinsics,
+                                             position,
+                                             orientation,
+                                             zrange)
+    set_alpha and self.set_alpha_transparency(1)
+    return color
+
   def get_reward(self):
     return 0  # TODO: check did the robot follow text instructions?
 
@@ -392,14 +409,51 @@ class PickPlaceEnv():
     intrinsics = np.float32(intrinsics).reshape(3, 3)
     return color, depth, position, orientation, intrinsics
 
-  def get_fmat(self, image_size=(720, 720), intrinsics=(360., 0, 360., 0, 360., 360., 0, 0, 1)):
-    # Camera parameters.
-    position = (0, -0.85, 0.4)
-    orientation = (np.pi / 4 + np.pi / 48, np.pi, np.pi)
-    orientation = pybullet.getQuaternionFromEuler(orientation)
-    zrange = (0.01, 10.)
+  #def get_fmat(self, image_size=(720, 720), intrinsics=(360., 0, 360., 0, 360., 360., 0, 0, 1)):
+  #  # Camera parameters.
+  #  position = (0, -0.85, 0.4)
+  #  orientation = (np.pi / 4 + np.pi / 48, np.pi, np.pi)
+  #  orientation = pybullet.getQuaternionFromEuler(orientation)
+  #  zrange = (0.01, 10.)
 
-    # OpenGL camera settings.
+  #  # OpenGL camera settings.
+  #  lookdir = np.float32([0, 0, 1]).reshape(3, 1)
+  #  updir = np.float32([0, -1, 0]).reshape(3, 1)
+  #  rotation = pybullet.getMatrixFromQuaternion(orientation)
+  #  rotm = np.float32(rotation).reshape(3, 3)
+  #  lookdir = (rotm @ lookdir).reshape(-1)
+  #  updir = (rotm @ updir).reshape(-1)
+  #  lookat = position + lookdir
+  #  focal_len = intrinsics[0]
+  #  znear, zfar = (0.01, 10.)
+  #  viewm = pybullet.computeViewMatrix(position, lookat, updir)
+  #  fovh = (image_size[0] / 2) / focal_len
+  #  fovh = 180 * np.arctan(fovh) * 2 / np.pi
+
+  #  # Notes: 1) FOV is vertical FOV 2) aspect must be float
+  #  aspect_ratio = image_size[1] / image_size[0]
+  #  projm = pybullet.computeProjectionMatrixFOV(fovh, aspect_ratio, znear, zfar)
+
+  #  my_order = 'C'
+  #  pmat = np.array(projm).reshape((4,4), order=my_order)
+  #  vmat = np.array(viewm).reshape((4,4), order=my_order)
+  #  fmat = pmat @ vmat.T
+
+  #  return fmat
+
+  #def get_fmat(self, image_size=(240, 240), 
+  #                   intrinsics=(2000., 0, 2000., 0, 2000., 2000., 0, 0, 1),
+  #                   position=(0, -2.05, 5),
+  #                   orientation=(0.3, np.pi, np.pi),
+  #                   zrange=(0.01, 1.)):
+
+  def get_fmat(self, image_size=(240, 240), 
+                     intrinsics=(2000., 0, 2000., 0, 2000., 2000., 0, 0, 1),
+                     position=(0, -2.9, 5),
+                     orientation=(0.45, np.pi, np.pi),
+                     zrange=(0.01, 1.)):
+
+    orientation = pybullet.getQuaternionFromEuler(orientation)
     lookdir = np.float32([0, 0, 1]).reshape(3, 1)
     updir = np.float32([0, -1, 0]).reshape(3, 1)
     rotation = pybullet.getMatrixFromQuaternion(orientation)
@@ -408,8 +462,7 @@ class PickPlaceEnv():
     updir = (rotm @ updir).reshape(-1)
     lookat = position + lookdir
     focal_len = intrinsics[0]
-    #znear, zfar = (0.01, 10.)
-    znear, zfar = (0.01, 100.)
+    znear, zfar = (0.01, 10.)
     viewm = pybullet.computeViewMatrix(position, lookat, updir)
     fovh = (image_size[0] / 2) / focal_len
     fovh = 180 * np.arctan(fovh) * 2 / np.pi
@@ -425,7 +478,6 @@ class PickPlaceEnv():
 
     return fmat
 
- 
   def render_image_top(self, 
                        image_size=(240, 240), 
                        intrinsics=(2000., 0, 2000., 0, 2000., 2000., 0, 0, 1),

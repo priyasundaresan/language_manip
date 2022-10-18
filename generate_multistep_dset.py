@@ -93,11 +93,13 @@ for d in [dset_dir, images_dir, lang_dir, keypoints_dir]:
 policy = ScriptedPolicy(env, PICK_TARGETS, PLACE_TARGETS)
 
 image_size = (240, 240)
-intrinsics = (120., 0, 120., 0, 120., 120., 0, 0, 1)
+#intrinsics = (120., 0, 120., 0, 120., 120., 0, 0, 1)
+intrinsics = (190., 0, 190., 0, 190., 190., 0, 0, 1)
 fmat = env.get_fmat(image_size, intrinsics)
+#fmat = env.get_fmat()
 
 data_idx = 0
-MAX_DEMOS = 2
+MAX_DEMOS = 350
 for i in range(MAX_DEMOS):
     #prompt, items_all, actions = policy.generate_stack_demo('block')
     np.random.seed(data_idx)
@@ -112,10 +114,12 @@ for i in range(MAX_DEMOS):
         act = policy.step(action, target)
         action_type, xyz_coord = act
 
-        #cur_point = (fmat @ np.hstack((xyz_coord, [1])))[:3]*np.array([240, 240, 0]) + np.array([120, 120, 0])
-        #print(xyz_coord, cur_point)
         img = env.get_camera_image()
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        #img = env.get_camera_image_top()
+        #img = np.flipud(img.transpose(1, 0, 2))
+        #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         pixels = []
         for item in items:
@@ -125,11 +129,12 @@ for i in range(MAX_DEMOS):
                 position = np.float32(pose[0])
             else:
                 position = np.float32(PLACE_TARGETS[item])
+
             pixel = (fmat @ np.hstack((position, [1])))[:3]*np.array([240, 240, 0]) + np.array([120, 120, 0])
             pixel = pixel[:-1].astype(int)
             pixel[1] = 240 - pixel[1]
-            #pixels.append(xyz_to_pix(pick_position)[::-1])
             pixels.append(pixel)
+            #pixels.append(xyz_to_pix(position)[::-1])
 
         np.save('%s/%05d.npy'%(lang_dir, data_idx), prompt)
         np.save('%s/%05d.npy'%(keypoints_dir, data_idx), pixels)
